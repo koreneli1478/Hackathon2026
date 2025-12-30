@@ -9,10 +9,7 @@ UDP_DEST_PORT = consts.UDP_PORT
 BUFFER_SIZE = consts.BUFFER_SIZE
 
 def send_broadcast_offers(server_port):
-    """
-    Runs in a separate thread. Broadcasts UDP offers every 1 second.
-    Receives the actual TCP port the server is listening on.
-    """
+
     server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_udp.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
@@ -31,9 +28,7 @@ def send_broadcast_offers(server_port):
         server_udp.close()
 
 def handle_client(client_socket, client_address):
-    """
-    Handles a single client connection via TCP.
-    """
+
     print(f"Client connected from {client_address}")
     
     try:
