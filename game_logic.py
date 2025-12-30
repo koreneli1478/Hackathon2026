@@ -1,20 +1,19 @@
 import random
 
-# הגדרת קבועים לערכי קלפים וצורות (חשוב שיתאים לפרוטוקול הרשת אחר כך)
-# Rank: 1-13, Suit: 0-3 [cite: 103]
+
 SUITS = ['Heart', 'Diamond', 'Club', 'Spade'] 
 RANKS = {
-    1: 11,   # Ace [cite: 29]
+    1: 11,  
     2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10,
-    11: 10,  # Jack [cite: 27]
-    12: 10,  # Queen [cite: 27]
-    13: 10   # King [cite: 27]
+    11: 10, 
+    12: 10, 
+    13: 10  
 }
 
 class Card:
     def __init__(self, rank, suit):
-        self.rank = rank  # 1-13
-        self.suit = suit  # 0-3
+        self.rank = rank 
+        self.suit = suit 
 
     def get_value(self):
         return RANKS[self.rank]
