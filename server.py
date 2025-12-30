@@ -74,7 +74,7 @@ def handle_client(client_socket, client_address):
                     new_card = game.player_hand.cards[-1]
                     
                     if hit_result['is_bust']:
-                        msg = protocol.pack_server_payload(2, new_card.rank, new_card.suit)
+                        msg = protocol.pack_server_payload(10, new_card.rank, new_card.suit)
                         client_socket.send(msg)
                         print(f"{player_name} busted!")
                         player_busted = True

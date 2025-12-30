@@ -1,6 +1,7 @@
 import socket
 import protocol  
 import consts
+import game_logic
 
 UDP_PORT = consts.UDP_PORT
 BUFFER_SIZE = consts.BUFFER_SIZE
@@ -9,9 +10,9 @@ def get_user_action():
     while True:
         choice = input("Your action (h/s): ").lower()
         if choice in ['h', 'hit']:
-            return "Hittt" 
+            return "hit"
         elif choice in ['s', 'stand']:
-            return "Stand"
+            return "stand"
         print("Invalid input. Please enter 'h' or 's'.")
 
 def play_session(server_ip, server_port, team_name, rounds):
@@ -29,8 +30,13 @@ def play_session(server_ip, server_port, team_name, rounds):
         for i in range(1, rounds + 1):
             print(f"\n--- Round {i} of {rounds} ---")
             
+            player_hand = game_logic.Hand()
+            dealer_hand = game_logic.Hand()
             my_turn = True
             round_over = False
+            card_count = 0
+            dealer_turn_started = False
+            player_busted = False
             
             while not round_over:
                 header_data = sock.recv(9)
@@ -45,16 +51,51 @@ def play_session(server_ip, server_port, team_name, rounds):
                 result, card_rank, card_suit = parsed
                 
                 if card_rank > 0:
-                    suits = ['Heart', 'Diamond', 'Club', 'Spade']
-                    rank_str = str(card_rank)
-                    if card_rank == 1: rank_str = "Ace"
-                    elif card_rank == 11: rank_str = "Jack"
-                    elif card_rank == 12: rank_str = "Queen"
-                    elif card_rank == 13: rank_str = "King"
+                    card = game_logic.Card(card_rank, card_suit)
                     
-                    print(f"Server sent card: {rank_str} of {suits[card_suit]}")
+                    if card_count < 2:
+                        player_hand.add_card(card)
+                        print(f"You received: {card}")
+                        if card_count == 1:
+                            total = player_hand.get_value()
+                            if total == 21:
+                                print(f"Your hand: {player_hand} (Total: 21 BLACKJACK!)")
+                            else:
+                                print(f"Your hand: {player_hand} (Total: {total})")
+                    elif card_count == 2:
+                        dealer_hand.add_card(card)
+                        print(f"Dealer's visible card: {card}")
+                    else:
+                        if my_turn:
+                            player_hand.add_card(card)
+                            print(f"You received: {card}")
+                            total = player_hand.get_value()
+                            if total == 21:
+                                print(f"Your hand: {player_hand} (Total: 21 BLACKJACK!)")
+                            else:
+                                print(f"Your hand: {player_hand} (Total: {total})")
+                            if total > 21:
+                                print("You BUSTED!")
+                                player_busted = True
+                        else:
+                            dealer_hand.add_card(card)
+                            if not dealer_turn_started:
+                                print(f"Dealer's hidden card was: {card}")
+                                dealer_turn_started = True
+                            else:
+                                print(f"Dealer received: {card}")
+                            dealer_total = dealer_hand.get_value()
+                            if dealer_total == 21:
+                                print(f"Dealer's hand: {dealer_hand} (Total: 21 BLACKJACK!)")
+                            else:
+                                print(f"Dealer's hand: {dealer_hand} (Total: {dealer_total})")
+                            if dealer_total > 21:
+                                print("Dealer BUSTED!")
+                    
+                    card_count += 1
                 
-                if result != 0:
+                # Handle final results (1=Tie, 2=Loss, 3=Win)
+                if result >= 1 and result <= 3:
                     round_over = True
                     if result == 3: 
                         print("You WON this round!")
@@ -63,22 +104,35 @@ def play_session(server_ip, server_port, team_name, rounds):
                         print("You LOST this round.")
                     elif result == 1: 
                         print("It's a TIE.")
+                    continue
+                
+                if result == 10:
+                    my_turn = False
                     continue 
                 
-                if my_turn:
-                    action = get_user_action()
-                    msg = protocol.pack_client_payload(action)
-                    sock.sendall(msg)
-                    
-                    if action == "Stand":
+                if my_turn and card_count >= 3 and not player_busted:
+                    if player_hand.get_value() == 21:
+                        print("Standing with 21!")
+                        msg = protocol.pack_client_payload("stand")
+                        sock.sendall(msg)
                         my_turn = False
                         print("Waiting for dealer's moves...")
+                    else:
+                        action = get_user_action()
+                        msg = protocol.pack_client_payload(action)
+                        sock.sendall(msg)
+                        
+                        if action.lower() == "stand":
+                            my_turn = False
+                            print("Waiting for dealer's moves...")
         
         win_rate = (wins / rounds) * 100
         print(f"Finished playing {rounds} rounds, win rate: {win_rate:.1f}%")
-        
+        return True  
+
     except Exception as e:
         print(f"Game error: {e}")
+        return False  
     finally:
         if sock:
             sock.close()
@@ -86,7 +140,7 @@ def play_session(server_ip, server_port, team_name, rounds):
 def start_client():
 
     print("--- Welcome to Blackjack Client ---") 
-    team_name = consts.TEAM_NAME
+    team_name = input("Enter your team name: ")[:31]
     print(f"Team Name: {team_name}")
     while True:
         try:
@@ -119,9 +173,22 @@ def start_client():
                 
                 print(f"Received offer from {server_ip} ('{server_name}')") 
                 
-                play_session(server_ip, server_port, team_name, rounds)
-                
-                print("Client started, listening for offer requests...") 
+                while True:
+                    play_session(server_ip, server_port, team_name, rounds)
+                    
+                    play_again = input("\nDo you want to play again? (y/n): ").lower()
+                    if play_again != 'y':
+                        print("Thanks for playing!")
+                        udp_sock.close()
+                        return                      
+                    while True:
+                        try:
+                            rounds_input = input("How many rounds to play? ")
+                            rounds = int(rounds_input)
+                            if rounds > 0: break
+                            print("Please enter a positive number.")
+                        except ValueError:
+                            print("Invalid number.")
                 
         except KeyboardInterrupt:
             print("\nExiting...")
