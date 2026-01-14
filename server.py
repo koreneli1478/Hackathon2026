@@ -13,6 +13,9 @@ def send_broadcast_offers(server_port):
     server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_udp.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
+    #for hotspot
+    #server_udp.bind((get_local_ip(), 0))
+
     print(f"UDP Broadcast started. Announcing TCP Port: {server_port}")
 
     try:
@@ -124,7 +127,9 @@ def get_local_ip():
         s.close()
         return ip
     except:
-        return "127.0.0.1"
+       return "127.0.0.1"
+       #for hotspot:
+ #       return "172.20.231.13"
 
 def start_server():
 
